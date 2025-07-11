@@ -12,7 +12,6 @@ export const checkCache = (keyPrefix: string) => async (req: Request, res: Respo
   const pipeline = redis.pipeline();
   keys.forEach(key => pipeline.get(key));
   const results = await pipeline.exec();
-  console.log("results", results);
   const hits: Record<string, string> = {};
   const miss: string[] = [];
 

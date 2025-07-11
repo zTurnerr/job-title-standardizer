@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.post(
   "/standardize",
-  validateJobTitleArray as unknown as RequestHandler,
-  checkCache("job-title-standardizer") as unknown as RequestHandler,
+  // validateJobTitleArray as unknown as RequestHandler,
+  // checkCache(process.env.CACHE_KEY as string) as unknown as RequestHandler,
   standardizeJobTitleHandler
 );
 
