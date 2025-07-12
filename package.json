@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
-    "start-worker": "ts-node src/workers/memberWorker.ts",
+    "start-worker": "ts-node src/temporal/worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
@@ -15,6 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@temporalio/client": "^1.12.1",
+    "@temporalio/common": "^1.12.1",
+    "@temporalio/worker": "^1.12.1",
     "bullmq": "^5.56.3",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
