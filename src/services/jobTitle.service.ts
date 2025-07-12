@@ -1,12 +1,10 @@
 import { Request, Response } from "express";
 import { fork } from "child_process";
 import path from "path";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { config } from "../config";
 
 export async function standardizeJobTitles(req: Request, res: Response) {
-  const numProcesses = Number(process.env.NUM_ENQUEUERS) || 2;
+  const numProcesses = config.numEnqueuers;
 
   console.log(`Spawning ${numProcesses} enqueuer processes...`);
 

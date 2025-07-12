@@ -1,13 +1,14 @@
-import { Sequelize } from 'sequelize';
-import 'dotenv/config';
+import { Sequelize } from "sequelize";
+import { config } from "../config";
+
 
 export const sequelize = new Sequelize({
-  host: process.env.PG_HOST || 'localhost',
-  port: Number(process.env.PG_PORT) || 5432,
-  database: process.env.PG_DATABASE || 'village',
-  username: process.env.PG_USER || 'postgres',
-  password: process.env.PG_PASSWORD || 'postgres',
-  dialect: 'postgres',
+  host: config.pgHost,
+  port: config.pgPort,
+  database: config.pgDatabase,
+  username: config.pgUser,
+  password: config.pgPassword,
+  dialect: "postgres",
   pool: {
     max: 10,
     min: 0,

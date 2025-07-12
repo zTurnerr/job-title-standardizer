@@ -1,22 +1,12 @@
 import { sequelize } from "../utils/sequelize";
 import { MemberAttributes } from "../models/Member";
 import { QueryTypes } from "sequelize";
-import dotenv from "dotenv";
 import { WorkflowClient } from "@temporalio/client";
 import { standardizeBatchWorkflow } from "../temporal/workflows";
+import {config} from "../config";
 
-dotenv.config();
-
-const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 1000;
-const NUM_BATCHES = Number(process.env.NUM_BATCHES) || 1;
-
-/*
-SELECT id, name, first_name, last_name, title, url, hash, location, industry, summary,
-connections, recommendations_count, logo_url, last_response_code, created, last_updated,
-outdated, deleted, country, connections_count, experience_count, last_updated_ux,
-member_shorthand_name, member_shorthand_name_hash, canonical_url, canonical_hash,
-canonical_shorthand_name, canonical_shorthand_name_hash
-*/
+const BATCH_SIZE = Number(config.batchSize) || 1000;
+const NUM_BATCHES = Number(config.numBatches) || 1;
 
 const fetchMemberBatchWithSkipLocked = async (
   transaction: any
@@ -43,7 +33,6 @@ const fetchMemberBatchWithSkipLocked = async (
 
   return rows;
 };
-
 
 export const enqueueMemberBatchesWithTemporal = async (
   client: WorkflowClient
@@ -72,7 +61,7 @@ export const enqueueMemberBatchesWithTemporal = async (
 
       await client.start(standardizeBatchWorkflow, {
         args: [members],
-        taskQueue: "member-standardization",
+        taskQueue: config.taskQueue as string,
         workflowId: `standardize-batch${Date.now()}-${process.pid}-${i + 1}`,
       });
 

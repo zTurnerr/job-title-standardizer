@@ -12,7 +12,6 @@ app.use(express.json());
 
 app.use(generalRateLimiter);
 
-// Routes
 app.use("/job-titles", jobTitleRoutes);
 
 export default app;

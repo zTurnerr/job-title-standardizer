@@ -1,17 +1,16 @@
 import { JobTitle } from "../models/openaiJobTitle";
 import { OpenAI } from "openai";
-import dotenv from "dotenv";
-dotenv.config();
+import { config } from "../config";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: config.openaiApiKey
 });
 
 export const openaiClient = {
   classifyJobTitles: async (jobTitles: string[]): Promise<JobTitle[]> => {
     console.log("Calling OpenAI API (Assistants) to classify job titles...", jobTitles);
 
-    const assistantId = process.env.JOB_TITLE_ASSISTANT_ID as string;
+    const assistantId = config.jobTitleAssistantId;
 
     if (!assistantId) {
       throw new Error("Missing JOB_TITLE_ASSISTANT_ID in environment variables.");

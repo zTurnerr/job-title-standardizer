@@ -1,9 +1,8 @@
 import { Member, MemberAttributes } from "../models/Member";
 import redis from "../utils/ioredis";
-import { sequelize } from "../utils/sequelize";
 import { openaiClient } from "../utils/openaiClient";
 import { JobTitle } from "../models/openaiJobTitle";
-
+import { config } from "../config";
 export async function standardizeMember(members: MemberAttributes[]) {
   /* steps:
   1. take the elements to redis to check if they are found there or not
@@ -17,7 +16,7 @@ export async function standardizeMember(members: MemberAttributes[]) {
     return;
   }
 
-  const cacheKeyPrefix = process.env.CACHE_KEY || "TITLE_CACHE";
+  const cacheKeyPrefix = config.cacheKey;
   const hits: Record<string, JobTitle> = {};
   const miss: string[] = [];
 
@@ -75,6 +74,6 @@ export async function standardizeMember(members: MemberAttributes[]) {
     );
   }
 
-  console.log("end of operation log: ", standardizedMiss);
+  console.log("After Update: ", standardizedMiss);
   console.log("Standardization completed for batch.");
 }
