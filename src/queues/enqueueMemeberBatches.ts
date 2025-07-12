@@ -1,9 +1,7 @@
 import { sequelize } from "../utils/sequelize";
 import { MemberAttributes } from "../models/Member";
-import { memberQueue } from "./memberQueue";
 import { QueryTypes } from "sequelize";
 import dotenv from "dotenv";
-import { memberQueueName } from "./memberQueue";
 import { WorkflowClient } from "@temporalio/client";
 import { standardizeBatchWorkflow } from "../temporal/workflows";
 
@@ -27,7 +25,11 @@ const fetchMemberBatchWithSkipLocked = async (
     `
     SELECT id, title, name
     FROM public.member
-    WHERE title_standerlization_status = 'not_processed'
+    WHERE 
+    title_standerlization_status = 'not_processed' 
+    AND title IS NOT NULL
+    AND title != '--'
+    AND title != '[default]'
     ORDER BY id
     FOR UPDATE SKIP LOCKED
     LIMIT :limit
@@ -42,44 +44,6 @@ const fetchMemberBatchWithSkipLocked = async (
   return rows;
 };
 
-// export const enqueueMemberBatches = async () => {
-//   const transaction = await sequelize.transaction();
-//   try {
-//     for (let i = 0; i < NUM_BATCHES; i++) {
-//       const members = await fetchMemberBatchWithSkipLocked(transaction);
-
-//       if (members.length === 0) {
-//         console.log(
-//           `No unprocessed members found at batch ${i + 1}. Stopping early.`
-//         );
-//         break;
-//       }
-//       const memberIds = members.map((member) => member.id);
-//       console.log(memberIds);
-//       await sequelize.query(
-//         `UPDATE public.member
-//         SET title_standerlization_status = 'fetched'
-//         WHERE id in (:ids)
-//         `, // check the difference between using IN () and = ANY()
-//         { replacements: { ids: memberIds }, transaction }
-//       );
-
-//       console.log(`Fetched batch ${i + 1} with ${members.length} members. Enqueuing... ${members[0].id} - ${members[0].name} - ${members[0].title}`);
-//       await memberQueue.add(memberQueueName, members, {
-//         jobId: `batch-${i + 1}-${Date.now()}`,
-//         removeOnComplete: true,
-//         removeOnFail: false,
-//       });
-
-//       console.log(`Enqueued batch ${i + 1} with ${members.length} members.`);
-//     }
-
-//     await transaction.commit();
-//   } catch (error) {
-//     console.error("Failed to enqueue member batches:", error);
-//     await transaction.rollback();
-//   }
-// };
 
 export const enqueueMemberBatchesWithTemporal = async (
   client: WorkflowClient

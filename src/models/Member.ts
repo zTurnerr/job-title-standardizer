@@ -1,5 +1,5 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '../utils/sequelize';
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../utils/sequelize";
 
 export interface MemberAttributes {
   id: number;
@@ -9,6 +9,11 @@ export interface MemberAttributes {
   title: string;
   url: string;
   hash: string;
+  title_standerlization_status: string;
+  standardized_title: string;
+  department: string;
+  function: string[];
+  seniority: string;
   location: string;
   industry: string;
   summary: string;
@@ -32,7 +37,10 @@ export interface MemberAttributes {
   canonical_shorthand_name_hash: string;
 }
 
-export class Member extends Model<MemberAttributes> implements MemberAttributes {
+export class Member
+  extends Model<MemberAttributes>
+  implements MemberAttributes
+{
   public id!: number;
   public name!: string;
   public first_name!: string;
@@ -42,6 +50,11 @@ export class Member extends Model<MemberAttributes> implements MemberAttributes 
   public hash!: string;
   public location!: string;
   public industry!: string;
+  public title_standerlization_status!: string;
+  public standardized_title!: string;
+  public department!: string;
+  public function!: string[];
+  public seniority!: string;
   public summary!: string;
   public connections!: number | null;
   public recommendations_count!: number | null;
@@ -68,6 +81,14 @@ Member.init(
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     name: { type: DataTypes.STRING },
     first_name: { type: DataTypes.STRING },
+    title_standerlization_status: {
+      type: DataTypes.STRING,
+      defaultValue: "not_processed",
+    },
+    standardized_title: { type: DataTypes.STRING, defaultValue: "" },
+    department: { type: DataTypes.STRING, defaultValue: "" },
+    function: { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] },
+    seniority: { type: DataTypes.STRING, defaultValue: "" },
     last_name: { type: DataTypes.STRING },
     title: { type: DataTypes.STRING },
     url: { type: DataTypes.STRING },
@@ -96,8 +117,8 @@ Member.init(
   },
   {
     sequelize,
-    tableName: 'member',
-    schema: 'public',
+    tableName: "member",
+    schema: "public",
     timestamps: false,
   }
 );

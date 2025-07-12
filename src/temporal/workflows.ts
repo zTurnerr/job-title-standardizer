@@ -1,11 +1,10 @@
 import { proxyActivities } from '@temporalio/workflow';
+import { MemberAttributes } from '../models/Member';
 
 const { standardizeMember } = proxyActivities<typeof import('./activities')>({
   startToCloseTimeout: '5 minutes',
 });
 
-export async function standardizeBatchWorkflow(members: any[]) {
-  for (const member of members) {
-    await standardizeMember(member);
-  }
+export async function standardizeBatchWorkflow(members: MemberAttributes[]) {
+    await standardizeMember(members);
 }
