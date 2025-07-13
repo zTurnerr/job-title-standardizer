@@ -4,6 +4,7 @@ import { openaiClient } from "../utils/openaiClient";
 import { JobTitle } from "../models/openaiJobTitle";
 import { config } from "../config";
 import { logger } from "../utils/logger";
+import { normalizeJobTitle } from "../utils/titleNormalizer";
 export async function standardizeMember(members: MemberAttributes[]) {
   /* steps:
   1. take the elements to redis to check if they are found there or not
@@ -22,20 +23,24 @@ export async function standardizeMember(members: MemberAttributes[]) {
   const hits: Record<string, JobTitle> = {};
   const miss: string[] = [];
   const failedMemberIds: number[] = [];
+  const titleToNormalized: Record<string, string> = {};
 
-  for (const member of members) {
-    const cacheKey = `${cacheKeyPrefix}:${member.title}`;
+for (const member of members) {
+    const normalized = normalizeJobTitle(member.title).normalized;
+    titleToNormalized[member.title] = normalized;
+
+    const cacheKey = `${cacheKeyPrefix}:${normalized}`;
     try {
       const cached = await redis.get(cacheKey);
       if (cached) {
-        logger.info(`Cache hit for "${member.title}"`);
+        logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
         hits[member.title] = JSON.parse(cached);
       } else {
-        logger.info(`Cache miss for "${member.title}"`);
+        logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
         miss.push(member.title);
       }
     } catch (err) {
-      logger.error(`Redis error for ${member.title}:`, err);
+      logger.error(`Redis error for ${member.title}/${normalized}:`, err);
       failedMemberIds.push(member.id);
     }
   }
@@ -56,7 +61,10 @@ export async function standardizeMember(members: MemberAttributes[]) {
   try {
     const pipeline = redis.pipeline();
     for (const result of standardizedMiss) {
-      const key = `${cacheKeyPrefix}:${result.title}`;
+      const normalized = titleToNormalized[result.title];
+      if (!normalized) continue;
+
+      const key = `${cacheKeyPrefix}:${normalized}`;
       pipeline.set(key, JSON.stringify(result));
       hits[result.title] = result;
     }
@@ -72,6 +80,7 @@ export async function standardizeMember(members: MemberAttributes[]) {
       failedMemberIds.push(member.id);
       continue;
     }
+
     if (member.title_standerlization_status === "standardized") {
       logger.info(`Skipping already-standardized member: ${member.id}`);
       continue;
