@@ -13,7 +13,6 @@ const fetchMemberBatchWithSkipLocked = async (
   transaction: any
 ): Promise<MemberAttributes[]> => {
   const rows = await sequelize.query<MemberAttributes>(
-    // Fetch members that are not processed or have been standardized and updated their titles
     `
     SELECT id, title, name
     FROM public.member
@@ -32,7 +31,6 @@ const fetchMemberBatchWithSkipLocked = async (
     AND title != '[default]' 
     AND title_standerlization_status = 'standarized'
     )
-    ORDER BY id
     ORDER BY id
     FOR UPDATE SKIP LOCKED
     LIMIT :limit
