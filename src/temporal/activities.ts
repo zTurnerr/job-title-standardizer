@@ -3,6 +3,7 @@ import redis from "../utils/ioredis";
 import { openaiClient } from "../utils/openaiClient";
 import { JobTitle } from "../models/openaiJobTitle";
 import { config } from "../config";
+import { logger } from "../utils/logger";
 export async function standardizeMember(members: MemberAttributes[]) {
   /* steps:
   1. take the elements to redis to check if they are found there or not
@@ -11,69 +12,103 @@ export async function standardizeMember(members: MemberAttributes[]) {
   4. miss sent to send to OpenAI for classification 
   5. store the standardized title in redis + update member table in postgres status and other columns
   */
+
   if (members.length === 0) {
-    console.warn("No members to standardize.");
+    logger.warn("No members to standardize.");
     return;
   }
 
   const cacheKeyPrefix = config.cacheKey;
   const hits: Record<string, JobTitle> = {};
   const miss: string[] = [];
+  const failedMemberIds: number[] = [];
 
   for (const member of members) {
     const cacheKey = `${cacheKeyPrefix}:${member.title}`;
-    const cached = await redis.get(cacheKey);
-
-    if (cached) {
-      console.log(`Cache hit for title "${member.title}"`);
-      hits[member.title] = JSON.parse(cached);
-    } else {
-      console.log(`Cache miss for title "${member.title}"`);
-      miss.push(member.title);
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        logger.info(`Cache hit for "${member.title}"`);
+        hits[member.title] = JSON.parse(cached);
+      } else {
+        logger.info(`Cache miss for "${member.title}"`);
+        miss.push(member.title);
+      }
+    } catch (err) {
+      logger.error(`Redis error for ${member.title}:`, err);
+      failedMemberIds.push(member.id);
     }
   }
 
   let standardizedMiss: JobTitle[] = [];
   if (miss.length > 0) {
-    standardizedMiss = await openaiClient.classifyJobTitles(miss);
+    try {
+      standardizedMiss = await openaiClient.classifyJobTitles(miss);
+    } catch (err) {
+      logger.error("OpenAI classification failed:", err);
+      const missedIds = members
+        .filter((m) => miss.includes(m.title))
+        .map((m) => m.id);
+      failedMemberIds.push(...missedIds);
+    }
   }
 
-  const pipeline = redis.pipeline();
-
-  for (const result of standardizedMiss) {
-    const cacheKey = `${cacheKeyPrefix}:${result.title}`;
-    pipeline.set(cacheKey, JSON.stringify(result));
-    hits[result.title] = result;
+  try {
+    const pipeline = redis.pipeline();
+    for (const result of standardizedMiss) {
+      const key = `${cacheKeyPrefix}:${result.title}`;
+      pipeline.set(key, JSON.stringify(result));
+      hits[result.title] = result;
+    }
+    await pipeline.exec();
+  } catch (err) {
+    logger.error("Failed to write to Redis:", err);
   }
-
-  await pipeline.exec();
 
   for (const member of members) {
     const standardized = hits[member.title];
     if (!standardized) {
-      console.warn(`Missing standardized result for ${member.title}`);
+      logger.warn(`No standardization result for "${member.title}"`);
+      failedMemberIds.push(member.id);
+      continue;
+    }
+    if (member.title_standerlization_status === "standardized") {
+      logger.info(`Skipping already-standardized member: ${member.id}`);
       continue;
     }
 
-    console.log("update operation log: ", standardized);
-    await Member.update(
-      {
-        title_standerlization_status: "standardized",
-        standardized_title: standardized.title,
-        department: standardized.department,
-        function: Array.isArray(standardized.function)
-          ? standardized.function
-          : [standardized.function],
-        seniority: standardized.seniority_level,
-      },
-      {
-        where: {
-          title: member.title,
+    logger.info("Before Update Operation Log: ", standardized);
+    try {
+      await Member.update(
+        {
+          title_standerlization_status: "standardized",
+          standardized_title: standardized.title,
+          department: standardized.department,
+          function: Array.isArray(standardized.function)
+            ? standardized.function
+            : [standardized.function],
+          seniority: standardized.seniority_level,
         },
-      }
-    );
+        { where: { id: member.id } }
+      );
+    } catch (err) {
+      logger.error(` DB update failed for member ID ${member.id}:`, err);
+      failedMemberIds.push(member.id);
+    }
   }
 
-  console.log("After Update: ", standardizedMiss);
-  console.log("Standardization completed for batch.");
+  if (failedMemberIds.length > 0) {
+    try {
+      await Member.update(
+        { title_standerlization_status: "failed" },
+        { where: { id: failedMemberIds } }
+      );
+      logger.warn(`Marked ${failedMemberIds.length} members as 'failed'`);
+    } catch (err) {
+      logger.error("Failed to update 'failed' statuses:", err);
+    }
+  }
+
+  logger.info("After Update: ", standardizedMiss);
+  logger.info("Standardization completed for batch.");
 }

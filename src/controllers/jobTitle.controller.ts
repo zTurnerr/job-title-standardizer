@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { standardizeJobTitles } from "../services/jobTitle.service";
+import { logger } from "../utils/logger";
 
 export async function standardizeJobTitleHandler(req: Request, res: Response) {
   try {
@@ -9,7 +10,7 @@ export async function standardizeJobTitleHandler(req: Request, res: Response) {
       message: "Job titles standardized successfully",
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
 }

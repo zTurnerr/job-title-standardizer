@@ -1,19 +1,25 @@
 import { JobTitle } from "../models/openaiJobTitle";
 import { OpenAI } from "openai";
 import { config } from "../config";
+import { logger } from "../utils/logger";
 
 const openai = new OpenAI({
-  apiKey: config.openaiApiKey
+  apiKey: config.openaiApiKey,
 });
 
 export const openaiClient = {
   classifyJobTitles: async (jobTitles: string[]): Promise<JobTitle[]> => {
-    console.log("Calling OpenAI API (Assistants) to classify job titles...", jobTitles);
+    logger.info(
+      "Calling OpenAI API (Assistants) to classify job titles...",
+      jobTitles
+    );
 
     const assistantId = config.jobTitleAssistantId;
 
     if (!assistantId) {
-      throw new Error("Missing JOB_TITLE_ASSISTANT_ID in environment variables.");
+      throw new Error(
+        "Missing JOB_TITLE_ASSISTANT_ID in environment variables."
+      );
     }
 
     const message = `Classify these job titles into department, function, and seniority:\n${jobTitles.join(
@@ -34,12 +40,12 @@ export const openaiClient = {
     let runStatus = await openai.beta.threads.runs.retrieve(run.id, {
       thread_id: thread.id,
     });
-    while (runStatus.status !== "completed" ) {
+    while (runStatus.status !== "completed") {  // TODO: ADD FAILURE HANDLING
       if (runStatus.status === "failed" || runStatus.status === "cancelled") {
-        console.error("Assistant run failed:", runStatus.last_error);
+        logger.error("Assistant run failed:", runStatus.last_error);
         break;
       }
-      console.log("Waiting for Assistant to finish...");
+      logger.info("Waiting for Assistant to finish...");
       await new Promise((resolve) => setTimeout(resolve, 2000));
       runStatus = await openai.beta.threads.runs.retrieve(run.id, {
         thread_id: thread.id,

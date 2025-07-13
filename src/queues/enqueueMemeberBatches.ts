@@ -3,7 +3,8 @@ import { MemberAttributes } from "../models/Member";
 import { QueryTypes } from "sequelize";
 import { WorkflowClient } from "@temporalio/client";
 import { standardizeBatchWorkflow } from "../temporal/workflows";
-import {config} from "../config";
+import { config } from "../config";
+import { logger } from "../utils/logger";
 
 const BATCH_SIZE = Number(config.batchSize) || 1000;
 const NUM_BATCHES = Number(config.numBatches) || 1;
@@ -12,14 +13,26 @@ const fetchMemberBatchWithSkipLocked = async (
   transaction: any
 ): Promise<MemberAttributes[]> => {
   const rows = await sequelize.query<MemberAttributes>(
+    // Fetch members that are not processed or have been standardized and updated their titles
     `
     SELECT id, title, name
     FROM public.member
     WHERE 
+    (
     title_standerlization_status = 'not_processed' 
     AND title IS NOT NULL
     AND title != '--'
     AND title != '[default]'
+    ) 
+    or 
+	  (
+    title != old_title 
+    AND title IS NOT NULL
+    AND title != '--'
+    AND title != '[default]' 
+    AND title_standerlization_status = 'standarized'
+    )
+    ORDER BY id
     ORDER BY id
     FOR UPDATE SKIP LOCKED
     LIMIT :limit
@@ -43,7 +56,7 @@ export const enqueueMemberBatchesWithTemporal = async (
       const members = await fetchMemberBatchWithSkipLocked(transaction);
 
       if (members.length === 0) {
-        console.log(
+        logger.info(
           `No unprocessed members found at batch ${i + 1}. Stopping early.`
         );
         break;
@@ -57,7 +70,7 @@ export const enqueueMemberBatchesWithTemporal = async (
         { replacements: { ids: memberIds }, transaction }
       );
 
-      console.log(`Fetched batch ${i + 1}, enqueuing Workflow...`);
+      logger.info(`Fetched batch ${i + 1}, enqueuing Workflow...`);
 
       await client.start(standardizeBatchWorkflow, {
         args: [members],
@@ -65,12 +78,12 @@ export const enqueueMemberBatchesWithTemporal = async (
         workflowId: `standardize-batch${Date.now()}-${process.pid}-${i + 1}`,
       });
 
-      console.log(`Workflow started for batch ${i + 1}.`);
+      logger.info(`Workflow started for batch ${i + 1}.`);
     }
 
     await transaction.commit();
   } catch (error) {
-    console.error("Failed to enqueue member batches:", error);
+    logger.error("Failed to enqueue member batches:", error);
     await transaction.rollback();
   }
 };

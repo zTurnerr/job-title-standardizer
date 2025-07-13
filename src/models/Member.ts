@@ -26,6 +26,7 @@ export interface MemberAttributes {
   outdated: boolean;
   deleted: boolean;
   country: string;
+  old_title: string;
   connections_count: number | null;
   experience_count: number | null;
   last_updated_ux: string;
@@ -46,6 +47,7 @@ export class Member
   public first_name!: string;
   public last_name!: string;
   public title!: string;
+  public old_title!: string;
   public url!: string;
   public hash!: string;
   public location!: string;
@@ -89,6 +91,7 @@ Member.init(
     department: { type: DataTypes.STRING, defaultValue: "" },
     function: { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] },
     seniority: { type: DataTypes.STRING, defaultValue: "" },
+    old_title: { type: DataTypes.STRING, defaultValue: "" },
     last_name: { type: DataTypes.STRING },
     title: { type: DataTypes.STRING },
     url: { type: DataTypes.STRING },
