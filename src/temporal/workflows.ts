@@ -7,7 +7,7 @@ const { standardizeMember } = proxyActivities<typeof import("./activities")>({
     maximumAttempts: 2,
     initialInterval: '5s',
     backoffCoefficient: 2,
-    nonRetryableErrorTypes: ['BadInputError'], // todo: define and throw your own error types
+    nonRetryableErrorTypes: ['BadInputError'], // TODO: define and throw your own error types based on the real world case
   },
 });
 

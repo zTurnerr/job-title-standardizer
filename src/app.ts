@@ -8,6 +8,7 @@ const app = express();
 
 app.use(helmet());
 app.use(cors());
+// only for testing purposes, remove in production
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

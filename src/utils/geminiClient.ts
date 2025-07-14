@@ -1,16 +1,13 @@
-// geminiClient.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { JobTitle } from "../models/openaiJobTitle";
 
-// Setup Gemini Flash 1.5
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
 const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
 
-// Retry config
 const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
+const RETRY_DELAY_MS = 5000;
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -18,7 +15,7 @@ function delay(ms: number) {
 
 function estimateTokenCount(text: string): number {
   const words = text.trim().split(/\s+/).length;
-  return Math.round(words / 0.75); // ~0.75 words/token for English
+  return Math.round(words / 0.75); 
 }
 
 export const geminiClient = {

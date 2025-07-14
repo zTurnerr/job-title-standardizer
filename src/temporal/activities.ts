@@ -6,15 +6,16 @@ import { JobTitle } from "../models/openaiJobTitle";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { normalizeJobTitle } from "../utils/titleNormalizer";
+import { retryMemberUpdate } from "../utils/sequelize";
 export async function standardizeMember(members: MemberAttributes[]) {
   /* steps:
   1. take the elements to redis to check if they are found there or not
   2. if found, return the standardized title => store in hits
   3. if not found => store in miss
-  4. miss sent to send to OpenAI for classification 
+  4. miss sent to send to Gemini for classification 
   5. store the standardized title in redis + update member table in postgres status and other columns
   */
-
+  const batchId = `batch-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   if (members.length === 0) {
     logger.warn("No members to standardize.");
     return;
@@ -26,27 +27,48 @@ export async function standardizeMember(members: MemberAttributes[]) {
   const failedMemberIds: number[] = [];
   const titleToNormalized: Record<string, string> = {};
 
-  for (const member of members) {
+  // for (const member of members) {
+  //   const normalized = normalizeJobTitle(member.title).normalized;
+  //   titleToNormalized[member.title] = normalized;
+
+  //   const cacheKey = `${cacheKeyPrefix}:${normalized}`;
+  //   try {
+  //     const cached = await redis.get(cacheKey);
+  //     if (cached) {
+  //       // logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
+  //       hits[member.title] = JSON.parse(cached);
+  //     } else {
+  //       // logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
+  //       miss.push(member.title);
+  //     }
+  //   } catch (err) {
+  //     logger.error(`Redis error for ${member.title}/${normalized}:`, err);
+  //     failedMemberIds.push(member.id);
+  //   }
+  // }
+
+  const redisPromises = members.map(async (member) => {
     const normalized = normalizeJobTitle(member.title).normalized;
     titleToNormalized[member.title] = normalized;
-
     const cacheKey = `${cacheKeyPrefix}:${normalized}`;
     try {
       const cached = await redis.get(cacheKey);
       if (cached) {
-        // logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
         hits[member.title] = JSON.parse(cached);
+        // logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
       } else {
-        // logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
         miss.push(member.title);
+        // logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
       }
     } catch (err) {
-      logger.error(`Redis error for ${member.title}/${normalized}:`, err);
+      logger.error(`[${batchId}] Redis error for ${member.title}/${normalized}:`, err);
       failedMemberIds.push(member.id);
     }
-  }
+  });
+  await Promise.allSettled(redisPromises);
+
   logger.info(
-    `Cache check complete. Hits: ${Object.keys(hits).length}, Misses: ${
+    `[${batchId}] Cache check complete. Hits: ${Object.keys(hits).length}, Misses: ${
       miss.length
     }`
   );
@@ -55,7 +77,7 @@ export async function standardizeMember(members: MemberAttributes[]) {
     try {
       standardizedMiss = await geminiClient.classifyJobTitles(miss);
     } catch (err) {
-      logger.error("OpenAI classification failed:", err);
+      logger.error(`[${batchId}] Gemini classification failed: ${err}`);
       const missedIds = members
         .filter((m) => miss.includes(m.title))
         .map((m) => m.id);
@@ -75,7 +97,7 @@ export async function standardizeMember(members: MemberAttributes[]) {
     }
     await pipeline.exec();
   } catch (err) {
-    logger.error("Failed to write to Redis:", err);
+    logger.error(`[${batchId}] Failed to write to Redis: ${err}`);
   }
 
   for (const member of members) {
@@ -86,12 +108,12 @@ export async function standardizeMember(members: MemberAttributes[]) {
     }
 
     if (member.title_standerlization_status === "standardized") {
-      logger.info(`Skipping already-standardized member: ${member.id}`);
+      logger.info(`[${batchId}] Skipping already-standardized member: ${member.id}`);
       continue;
     }
 
     try {
-      await Member.update(
+      retryMemberUpdate(
         {
           title_standerlization_status: "standardized",
           standardized_title: standardized.title,
@@ -103,8 +125,9 @@ export async function standardizeMember(members: MemberAttributes[]) {
         },
         { where: { id: member.id } }
       );
+      // await Member.update({}, { where: { id: member.id } });
     } catch (err) {
-      logger.error(` DB update failed for member ID ${member.id}:`, err);
+      logger.error(`[${batchId}] DB update failed for member ID ${member.id}:`, err);
     }
   }
 
@@ -115,13 +138,13 @@ export async function standardizeMember(members: MemberAttributes[]) {
         { where: { id: failedMemberIds } }
       );
       logger.warn(
-        `Marked ${failedMemberIds.length} members as 'failed with ${members.length} total input for the worker'`
+        `[${batchId}] Marked ${failedMemberIds.length} members as 'failed with ${members.length} total input for the worker'`
       );
     } catch (err) {
-      logger.error("Failed to update 'failed' statuses:", err);
+      logger.error(`[${batchId}] Failed to update 'failed' statuses: ${err}`);
     }
   }
 
   // logger.info("After Update: ", standardizedMiss);
-  logger.info("Standardization completed for batch.");
+  logger.info(`[${batchId}]Standardization completed for batch.`);
 }
