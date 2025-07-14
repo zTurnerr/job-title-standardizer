@@ -1,15 +1,35 @@
 import { Connection, WorkflowClient } from "@temporalio/client";
-import { enqueueMemberBatchesWithTemporal } from "../queues/enqueueMemeberBatches";
-import {logger} from "../utils/logger";
+import { enqueueMemberBatches } from "../queues/enqueueMemeberBatches";
+import { logger } from "../utils/logger";
 
 (async () => {
-  logger.info(`Enqueuer Worker Process Started (PID: ${process.pid})`);
-
   const connection = await Connection.connect();
   const client = new WorkflowClient({ connection });
 
-  await enqueueMemberBatchesWithTemporal(client);
+  process.on("message", async (message: any) => {
+    const titles = message?.titles;
 
-  logger.info(`Enqueuer Worker Process Completed (PID: ${process.pid})`);
-  process.exit(0);
+    try {
+      if (Array.isArray(titles) && titles.length > 0) {
+        logger.info(
+          `Received ${titles.length} titles from parent. Enqueuing via payload.`
+        );
+        await enqueueMemberBatches(client, titles);
+      } else {
+        logger.info("No titles provided, falling back to DB batch mode.");
+        await enqueueMemberBatches(client);
+      }
+
+      process.exit(0);
+    } catch (err) {
+      logger.error("EnqueueWorker failed:", err);
+      process.exit(1);
+    }
+  });
+
+  // If no message arrives in a short time, fallback automatically
+  setTimeout(() => {
+    logger.warn("No message received. Falling back to default DB enqueue.");
+    process.send?.({ fallback: true });
+  }, 2000);
 })();

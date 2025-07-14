@@ -5,10 +5,10 @@ export const validateJobTitleArray = [
   body("titles")
     .isArray({ min: 1 })
     .withMessage("'titles' must be a non-empty array of strings"),
-  body("ti  tles.*")
+  body("titles.*")
     .isString()
     .trim()
-    .isLength({ min: 2, max: 100 })
+    // .isLength({ min: 2, max: 300 })
     .withMessage("Each job title must be a string between 2 and 100 characters")
     .escape(),
   (req: Request, res: Response, next: NextFunction) => {

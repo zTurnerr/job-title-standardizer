@@ -1,7 +1,7 @@
 import { JobTitle } from "../models/openaiJobTitle";
 import { OpenAI } from "openai";
 import { config } from "../config";
-import { logger } from "../utils/logger";
+import { logger } from "./logger";
 
 const openai = new OpenAI({
   apiKey: config.openaiApiKey,
@@ -10,8 +10,7 @@ const openai = new OpenAI({
 export const openaiClient = {
   classifyJobTitles: async (jobTitles: string[]): Promise<JobTitle[]> => {
     logger.info(
-      "Calling OpenAI API (Assistants) to classify job titles...",
-      jobTitles
+      `Calling OpenAI API (Assistants) to classify job titles... ${jobTitles.length} titles`
     );
 
     const assistantId = config.jobTitleAssistantId;
@@ -40,7 +39,8 @@ export const openaiClient = {
     let runStatus = await openai.beta.threads.runs.retrieve(run.id, {
       thread_id: thread.id,
     });
-    while (runStatus.status !== "completed") {  // TODO: ADD FAILURE HANDLING
+    while (runStatus.status !== "completed") {
+      // TODO: ADD FAILURE HANDLING
       if (runStatus.status === "failed" || runStatus.status === "cancelled") {
         logger.error("Assistant run failed:", runStatus.last_error);
         break;
@@ -50,6 +50,13 @@ export const openaiClient = {
       runStatus = await openai.beta.threads.runs.retrieve(run.id, {
         thread_id: thread.id,
       });
+    }
+    if (runStatus.usage) {
+      console.log("### Prompt tokens:", runStatus.usage.prompt_tokens);
+      console.log("### Completion tokens:", runStatus.usage.completion_tokens);
+      console.log("### Total tokens:", runStatus.usage.total_tokens);
+    } else {
+      console.warn("### No usage info found on runStatus!");
     }
 
     const messages = await openai.beta.threads.messages.list(thread.id);

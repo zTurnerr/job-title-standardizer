@@ -1,3 +1,5 @@
+
+
 export type NormalizedTitle = {
   title: string;
   normalized: string;
@@ -10,27 +12,42 @@ export class JobTitleNormalizer {
 
   constructor(debug = false) {
     this.abbreviations = {
-      'sr': 'senior',
-      'sr.': 'senior',
-      'svp': 'senior vice president',
-      'vp': 'vice president',
-      'mgr': 'manager',
-      'ceo': 'chief executive officer',
-      'cfo': 'chief financial officer',
-      'cto': 'chief technology officer',
-      'coo': 'chief operating officer',
-      'jr': 'junior',
-      'jr.': 'junior',
-      'eng': 'engineer',
-      'swe': 'software engineer',
-      'dev': 'developer',
-      'ux': 'user experience',
-      'ui': 'user interface',
+      sr: "senior",
+      "sr.": "senior",
+      svp: "senior vice president",
+      vp: "vice president",
+      mgr: "manager",
+      ceo: "chief executive officer",
+      cfo: "chief financial officer",
+      cto: "chief technology officer",
+      coo: "chief operating officer",
+      jr: "junior",
+      "jr.": "junior",
+      eng: "engineer",
+      swe: "software engineer",
+      dev: "developer",
+      ux: "user experience",
+      ui: "user interface",
     };
 
     this.stopwords = new Set([
-      'at', 'with', 'for', 'and', 'of', 'on', 'in', 'to', 'from', 'by', 'the',
-      'retired', 'student', 'independent', 'aspiring', 'semi', 'seeking',
+      "at",
+      "with",
+      "for",
+      "and",
+      "of",
+      "on",
+      "in",
+      "to",
+      "from",
+      "by",
+      "the",
+      "retired",
+      "student",
+      "independent",
+      "aspiring",
+      "semi",
+      "seeking",
     ]);
 
     this.debug = debug;
@@ -45,7 +62,7 @@ export class JobTitleNormalizer {
     steps.push(`Lowercase: ${title}`);
 
     // 2. Remove punctuation/special characters
-    title = title.replace(/[^a-z0-9\s]/g, ' ');
+    title = title.replace(/[^a-z0-9\s]/g, " ");
     steps.push(`Removed punctuation: ${title}`);
 
     // 3. Strip company name suffix
@@ -53,39 +70,39 @@ export class JobTitleNormalizer {
     steps.push(`Stripped suffix/company: ${title}`);
 
     // 4. Collapse multiple spaces
-    title = title.replace(/\s+/g, ' ').trim();
+    title = title.replace(/\s+/g, " ").trim();
     steps.push(`Normalized whitespace: ${title}`);
 
     // 5. Expand abbreviations
     title = title
-      .split(' ')
-      .map(word => this.abbreviations[word] || word)
-      .join(' ');
+      .split(" ")
+      .map((word) => this.abbreviations[word] || word)
+      .join(" ");
     steps.push(`Expanded abbreviations: ${title}`);
 
     // 6. Remove stopwords
     title = title
-      .split(' ')
-      .filter(word => !this.stopwords.has(word))
-      .join(' ');
+      .split(" ")
+      .filter((word) => !this.stopwords.has(word))
+      .join(" ");
     steps.push(`Removed stopwords: ${title}`);
 
     // 7. De-duplicate
     const seen = new Set<string>();
     title = title
-      .split(' ')
-      .filter(word => {
+      .split(" ")
+      .filter((word) => {
         if (seen.has(word)) return false;
         seen.add(word);
         return true;
       })
-      .join(' ');
+      .join(" ");
     steps.push(`Deduplicated: ${title}`);
 
     if (this.debug) {
-      console.log(`\n--- Debug for: "${input}" ---`);
+      console.info(`\n--- Debug for: "${input}" ---`);
       steps.forEach((step, i) => {
-        console.log(`${i + 1}. ${step}`);
+        console.info(`${i + 1}. ${step}`);
       });
     }
 
@@ -96,11 +113,11 @@ export class JobTitleNormalizer {
   }
 
   public normalizeAll(titles: string[]): NormalizedTitle[] {
-    return titles.map(t => this.normalize(t));
+    return titles.map((t) => this.normalize(t));
   }
 }
 
-const normalizer = new JobTitleNormalizer(true);
+const normalizer = new JobTitleNormalizer();
 
 export function normalizeJobTitles(titles: string[]): NormalizedTitle[] {
   return normalizer.normalizeAll(titles);

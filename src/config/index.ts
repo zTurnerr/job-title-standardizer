@@ -18,4 +18,6 @@ export const config = {
   cacheKey: process.env.CACHE_KEY || "TITLE_CACHE",
   openaiApiKey: process.env.OPENAI_API_KEY || "",
   jobTitleAssistantId: process.env.JOB_TITLE_ASSISTANT_ID || "",
+  openaiModel: process.env.OPENAI_MODEL|| "gpt-4o-mini",
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
 };
