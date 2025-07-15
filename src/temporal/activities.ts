@@ -27,25 +27,6 @@ export async function standardizeMember(members: MemberAttributes[]) {
   const failedMemberIds: number[] = [];
   const titleToNormalized: Record<string, string> = {};
 
-  // for (const member of members) {
-  //   const normalized = normalizeJobTitle(member.title).normalized;
-  //   titleToNormalized[member.title] = normalized;
-
-  //   const cacheKey = `${cacheKeyPrefix}:${normalized}`;
-  //   try {
-  //     const cached = await redis.get(cacheKey);
-  //     if (cached) {
-  //       // logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
-  //       hits[member.title] = JSON.parse(cached);
-  //     } else {
-  //       // logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
-  //       miss.push(member.title);
-  //     }
-  //   } catch (err) {
-  //     logger.error(`Redis error for ${member.title}/${normalized}:`, err);
-  //     failedMemberIds.push(member.id);
-  //   }
-  // }
 
   const redisPromises = members.map(async (member) => {
     const normalized = normalizeJobTitle(member.title).normalized;
@@ -55,10 +36,10 @@ export async function standardizeMember(members: MemberAttributes[]) {
       const cached = await redis.get(cacheKey);
       if (cached) {
         hits[member.title] = JSON.parse(cached);
-        // logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
+        logger.info(`Cache hit for "${member.title}", Normalized: "${normalized}"`);
       } else {
         miss.push(member.title);
-        // logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
+        logger.info(`Cache miss for "${member.title}", Normalized: "${normalized}"`);
       }
     } catch (err) {
       logger.error(`[${batchId}] Redis error for ${member.title}/${normalized}:`, err);
@@ -125,7 +106,6 @@ export async function standardizeMember(members: MemberAttributes[]) {
         },
         { where: { id: Number(member.id) } }
       );
-      // await Member.update({}, { where: { id: member.id } });
     } catch (err) {
       logger.error(`[${batchId}] DB update failed for member ID ${member.id}:`, err);
     }
@@ -145,6 +125,5 @@ export async function standardizeMember(members: MemberAttributes[]) {
     }
   }
 
-  // logger.info("After Update: ", standardizedMiss);
   logger.info(`[${batchId}]Standardization completed for batch.`);
 }

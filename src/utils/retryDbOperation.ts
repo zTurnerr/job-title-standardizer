@@ -6,7 +6,6 @@ export const retryMemberUpdate = async (
   whereObj: { where: { id: number } },
   retries = 3
 ) => {
-  // TODO: fix this unknown type
   for (let i = 0; i < retries; i++) {
     try {
         
