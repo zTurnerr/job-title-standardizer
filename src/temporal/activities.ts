@@ -6,7 +6,7 @@ import { JobTitle } from "../models/openaiJobTitle";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { normalizeJobTitle } from "../utils/titleNormalizer";
-import { retryMemberUpdate } from "../utils/sequelize";
+import { retryMemberUpdate } from "../utils/retryDbOperation";
 export async function standardizeMember(members: MemberAttributes[]) {
   /* steps:
   1. take the elements to redis to check if they are found there or not
@@ -113,7 +113,7 @@ export async function standardizeMember(members: MemberAttributes[]) {
     }
 
     try {
-      retryMemberUpdate(
+      await retryMemberUpdate(
         {
           title_standerlization_status: "standardized",
           standardized_title: standardized.title,
@@ -123,7 +123,7 @@ export async function standardizeMember(members: MemberAttributes[]) {
             : [standardized.function],
           seniority: standardized.seniority_level,
         },
-        { where: { id: member.id } }
+        { where: { id: Number(member.id) } }
       );
       // await Member.update({}, { where: { id: member.id } });
     } catch (err) {
