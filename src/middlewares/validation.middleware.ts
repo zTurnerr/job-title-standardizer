@@ -8,7 +8,7 @@ export const validateJobTitleArray = [
   body("titles.*")
     .isString()
     .trim()
-    // .isLength({ min: 2, max: 300 })
+    .isLength({ min: 5, max: 300 })
     .withMessage("Each job title must be a string between 2 and 100 characters")
     .escape(),
   (req: Request, res: Response, next: NextFunction) => {
