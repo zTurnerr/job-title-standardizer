@@ -4,7 +4,7 @@ import path from "path";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 
-export async function standardizeJobTitles(req: Request, res: Response) {
+export async function standardizeExperienceAiOutputs(req: Request, res: Response) {
   const numProcesses = config.numEnqueuers;
   const titlesFromBody = req.body?.titles;
 
@@ -36,7 +36,7 @@ export async function standardizeJobTitles(req: Request, res: Response) {
   }
 }
 
-export async function manualStandardizeJobTitles(manualTitles: string[]) {
+export async function manualStandardizeExperienceAiOutputs(manualTitles: string[]) {
   const workerPath = path.resolve(__dirname, "../temporal/enqueueWorker.ts");
   const worker = fork(workerPath, [], {
     execArgv: ["-r", "ts-node/register"],

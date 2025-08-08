@@ -1,4 +1,4 @@
-import { JobTitle } from "../models/openaiJobTitle";
+import { ExperienceAiOutput } from "../models/aiTypes";
 import { OpenAI } from "openai";
 import { config } from "../config";
 import { logger } from "./logger";
@@ -8,7 +8,7 @@ const openai = new OpenAI({
 });
 
 export const openaiClient = {
-  classifyJobTitles: async (jobTitles: string[]): Promise<JobTitle[]> => {
+  classifyExperienceAiOutputs: async (jobTitles: string[]): Promise<ExperienceAiOutput[]> => {
     logger.info(
       `Calling OpenAI API (Assistants) to classify job titles... ${jobTitles.length} titles`
     );
@@ -72,7 +72,7 @@ export const openaiClient = {
 
     const result = JSON.parse(
       (textContent as { type: "text"; text: { value: string } }).text.value
-    ) as JobTitle[];
+    ) as ExperienceAiOutput[];
     return result;
   },
 };

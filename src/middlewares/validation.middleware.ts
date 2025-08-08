@@ -1,7 +1,7 @@
 import { body, validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
 
-export const validateJobTitleArray = [
+export const validateExperienceAiOutputArray = [
   body("titles")
     .isArray({ min: 1 })
     .withMessage("'titles' must be a non-empty array of strings"),

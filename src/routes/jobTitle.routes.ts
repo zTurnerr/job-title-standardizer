@@ -1,15 +1,15 @@
 import express, { RequestHandler } from "express";
-import { standardizeJobTitleHandler, maualStandrizedJobTitle } from "../controllers/jobTitle.controller";
-import { validateJobTitleArray } from "../middlewares/validation.middleware";
+import { standardizeExperienceAiOutputHandler, maualStandrizedExperienceAiOutput } from "../controllers/jobTitle.controller";
+import { validateExperienceAiOutputArray } from "../middlewares/validation.middleware";
 
 const router = express.Router();
 
-router.post("/initStandardizeProcess", standardizeJobTitleHandler);
+router.post("/initStandardizeProcess", standardizeExperienceAiOutputHandler);
 
 router.post(
   "/maualBatchStandardize",
-  validateJobTitleArray as unknown as RequestHandler,
-  maualStandrizedJobTitle
+  validateExperienceAiOutputArray as unknown as RequestHandler,
+  maualStandrizedExperienceAiOutput
 );
 
 export default router;

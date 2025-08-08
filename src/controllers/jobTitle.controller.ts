@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import { standardizeJobTitles, manualStandardizeJobTitles } from "../services/jobTitle.service";
+import { standardizeExperienceAiOutputs, manualStandardizeExperienceAiOutputs } from "../services/jobTitle.service";
 import { logger } from "../utils/logger";
 
-export async function standardizeJobTitleHandler(req: Request, res: Response) {
+export async function standardizeExperienceAiOutputHandler(req: Request, res: Response) {
   try {
     const jobTitles: string[] = req.body.titles;
-    standardizeJobTitles(req, res);
+    standardizeExperienceAiOutputs(req, res);
     res.json({
       message: "Job titles standardized successfully",
     });
@@ -16,10 +16,10 @@ export async function standardizeJobTitleHandler(req: Request, res: Response) {
 }
 
 
-export async function maualStandrizedJobTitle(req: Request, res: Response) {
+export async function maualStandrizedExperienceAiOutput(req: Request, res: Response) {
   try {
     const jobTitles: string[] = req.body.titles;
-    manualStandardizeJobTitles(jobTitles);
+    manualStandardizeExperienceAiOutputs(jobTitles);
     res.json({
       message: "Job titles standardized successfully",
     });

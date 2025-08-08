@@ -1,5 +1,7 @@
 import { ApplicationFailure, proxyActivities } from "@temporalio/workflow";
-import { MemberAttributes } from "../models/Member";
+// import models for types
+import { ExperienceAttributes } from "../models/experience";
+import { EducationAttributes } from "../models/education";
 
 const { standardizeMember } = proxyActivities<typeof import("./activities")>({
   startToCloseTimeout: "5 minutes",
@@ -7,13 +9,21 @@ const { standardizeMember } = proxyActivities<typeof import("./activities")>({
     maximumAttempts: 2,
     initialInterval: '5s',
     backoffCoefficient: 2,
-    nonRetryableErrorTypes: ['BadInputError'], // TODO: define and throw your own error types based on the real world case
+    nonRetryableErrorTypes: ['BadInputError'],
   },
 });
 
-export async function standardizeBatchWorkflow(members: MemberAttributes[]) {
+// Make input type flexible
+type StandardizeBatchInput =
+  | [ExperienceAttributes[], "experience"]
+  | [EducationAttributes[], "education"];
+
+export async function standardizeBatchWorkflow(
+  members: ExperienceAttributes[] | EducationAttributes[],
+  target: string // "experience" | "education"
+) {
   try {
-    await standardizeMember(members);
+    await standardizeMember(members, target);
   } catch (err) {
     if (err instanceof ApplicationFailure) {
       if (err.type === 'BadInputError') {
@@ -21,6 +31,9 @@ export async function standardizeBatchWorkflow(members: MemberAttributes[]) {
         return 'SKIPPED_BAD_INPUT';
       }
     }
-    throw err; 
+    throw err;
   }
 }
+
+// For compatibility with your enqueue function, you can set this as the default export if needed:
+export default standardizeBatchWorkflow;

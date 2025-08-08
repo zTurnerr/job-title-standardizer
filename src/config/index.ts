@@ -15,6 +15,7 @@ export const config = {
   numTemporalWorkers: Number(process.env.NUM_TEMPORAL_WORKERS) || 1,
   numEnqueuers: Number(process.env.NUM_ENQUEUERS) || 1,
   taskQueue: process.env.TASK_QUEUE || "MEMBER_STANDARDIZATION",
-  cacheKey: process.env.CACHE_KEY || "TITLE_CACHE",
+  titleCacheKey: process.env.TITLE_CACHE_KEY || "TITLE_CACHE",
+  eduCacheKey: process.env.EDU_CACHE_KEY || "EDUCATION_CACHE",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
 };

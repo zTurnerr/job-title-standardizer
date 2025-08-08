@@ -5,7 +5,7 @@ export type NormalizedTitle = {
   normalized: string;
 };
 
-export class JobTitleNormalizer {
+export class ExperienceAiOutputNormalizer {
   private abbreviations: Record<string, string>;
   private stopwords: Set<string>;
   private debug: boolean;
@@ -117,12 +117,12 @@ export class JobTitleNormalizer {
   }
 }
 
-const normalizer = new JobTitleNormalizer();
+const normalizer = new ExperienceAiOutputNormalizer();
 
-export function normalizeJobTitles(titles: string[]): NormalizedTitle[] {
+export function normalizeExperienceAiOutputs(titles: string[]): NormalizedTitle[] {
   return normalizer.normalizeAll(titles);
 }
 
-export function normalizeJobTitle(title: string): NormalizedTitle {
+export function normalizeExperienceAiOutput(title: string): NormalizedTitle {
   return normalizer.normalize(title);
 }
