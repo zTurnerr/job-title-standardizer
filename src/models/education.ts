@@ -7,7 +7,7 @@ export interface EducationAttributes {
   source_profile_id: string;
   institution_name: string;
   social_url?: string;
-  degrees?: any; // Replace with a specific type if your JSON has a known structure
+  degrees?: string[]; 
   start_date?: Date;
   end_date?: Date;
   description?: string;

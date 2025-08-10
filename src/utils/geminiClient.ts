@@ -11,10 +11,8 @@ import { validateEducationStandardizationOutput, validateExperienceAiOutputStand
 
 dotenv.config();
 
-logger.info("IMPORTANT: GOOGLE_APPLICATION_CREDENTIALS");
-logger.info(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+logger.info(`IMPORTANT: GOOGLE_APPLICATION_CREDENTIALS ${process.env.GOOGLE_APPLICATION_CREDENTIALS}`);
 
-// const model = vertex('gemini-1.5-flash');
 const model = vertex('gemini-2.0-flash-lite-001');
 
 
@@ -169,16 +167,13 @@ export const geminiClient = {
         logger.info(`Estimated token usage: ${tokenEstimate}`);
 
 
-        logger.info(`output from ${JSON.stringify(cleaned)}`);
 
-        // let valdiatedAiResponse = validateExperienceAiOutputStandardizerOutput(
-        //   cleaned,
-        //   ['title', 'seniority_level', 'department', 'function']
-        // )
+        let valdiatedAiResponse = validateExperienceAiOutputStandardizerOutput(
+          cleaned,
+          ['title', 'seniority_level', 'department', 'function']
+        )
 
-        // logger.info(`output/validated from ${JSON.stringify(valdiatedAiResponse)}`);
-        // return valdiatedAiResponse;
-        return cleaned
+        return valdiatedAiResponse;
       } catch (error) {
         retries++;
         logger.error(`Gemini AI SDK error (attempt ${retries}):`, error);
@@ -199,6 +194,7 @@ export const geminiClient = {
 
     const prompt = `
         You are an education standardization assistant. For each raw degree input, return a standardized JSON with:
+          Valid Exampls: if no match found for education degree level, you MUST use Credential Transparency Description Language (CTDL) level EVEN IF IT'S NOT FOUND ON THE EXAMPLES LISTED, Never return NULL or empty value
           1. degree_level — Match to the best-fit Credential Transparency Description Language (CTDL) level:
 
           High School Diploma or Equivalent
@@ -225,9 +221,9 @@ export const geminiClient = {
 
           Doctorate / Research Degree
 
-          2. major — Match to the closest valid CIP major title (U.S. Dept. of Education). Avoid vague labels like "General Studies" unless explicitly stated.
+          2. major — Match to the closest valid CIP major title (U.S. Dept. of Education). Avoid vague labels like "General Studies" unless explicitly stated, 
 
-          Valid examples:
+          Valid examples, if no match found for education major, you can MUST CIP major title (U.S. Dept. of Education) EVEN IF IT'S NOT FOUND ON THE EXAMPLES LISTED, Never return NULL or empty value.:
 
           Accounting  
           Actuarial Science  
@@ -463,7 +459,7 @@ export const geminiClient = {
           One complete JSON array per response
           Be precise. 
           Return best-match only, Use only approved taxonomy.
-          if no match found for education major, you can use CIP APPROVED MAJORS ONLY.
+          if no match found for education major, you can use CIP APPROVED MAJORS ONLY EVEN IF IT'S NOT FOUND ON THE EXAMPLES ABOVE.
           you MUST return one dictionairy for one output.
 
           Education degrees to Classify:
@@ -481,15 +477,19 @@ export const geminiClient = {
         });
 
         const text = result.text;
-        lastResponse = text;
 
-        logger.error("Gemini raw output:\n" + lastResponse);
+        if (text.includes('\t')) {
+          console.warn('Tabs found in Gemini response. Replacing with spaces.');
+          lastResponse = text.replace(/\t/g, " ");
+        }else lastResponse = text;
+
+        // logger.info("Gemini raw output:\n" + lastResponse);
 
 
 
-        const jsonStart = text.indexOf("[");
-        const jsonEnd = text.lastIndexOf("]");
-        const jsonText = text.slice(jsonStart, jsonEnd + 1);
+        const jsonStart = lastResponse.indexOf("[");
+        const jsonEnd = lastResponse.lastIndexOf("]");
+        const jsonText = lastResponse.slice(jsonStart, jsonEnd + 1);
 
         const parsed = JSON.parse(jsonText) as any[];
 

@@ -11,7 +11,7 @@ if (!arg || !["experience", "education"].includes(arg)) {
 
 (async () => {
   try {
-    console.log(`Starting ${arg} standardization...`);
+    logger.info(`Starting ${arg} standardization...`);
 
     const workerPath = path.resolve(__dirname, "../temporal/enqueueWorker.ts");
     const worker = fork(workerPath, [arg], {
@@ -22,7 +22,7 @@ if (!arg || !["experience", "education"].includes(arg)) {
       logger.info(`Enqueuer process ${worker.pid} exited with code ${code}`);
     });
 
-    console.log(`${arg} submitted for standardization.`);
+    logger.info(`${arg} submitted for standardization.`);
   } catch (err) {
     console.error(`Error standardizing ${arg}:`, err);
     process.exit(1);

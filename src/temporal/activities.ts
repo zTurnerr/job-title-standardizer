@@ -1,7 +1,6 @@
 import { Experience, ExperienceAttributes } from "../models/experience";
 import { Education, EducationAttributes } from "../models/education";
 import redis from "../utils/ioredis";
-import { openaiClient } from "../utils/openaiClient.deprecated";
 import { geminiClient } from "../utils/geminiClient";
 import { ExperienceAiOutput } from "../models/aiTypes";
 import { EducationAiOutput } from "../models/aiTypes";
@@ -10,6 +9,7 @@ import { logger } from "../utils/logger";
 import { normalizeExperienceAiOutput } from "../utils/titleNormalizer";
 import { retryMemberUpdate } from "../utils/retryDbOperation";
 import dotenv from "dotenv";
+import { normalizeEducationCacheKey } from "../utils/educationNormalizer";
 
 dotenv.config();
 
@@ -23,7 +23,10 @@ export async function standardizeMember(
     return;
   }
 
-  const cacheKeyPrefix = target === "experience" ? config.titleCacheKey : config.eduCacheKey || "edu";
+  const cacheKeyPrefix = target === "experience"
+  ? (config.titleCacheKey || "EXP")
+  : (config.eduCacheKey || "EDU");
+
   const hits: Record<string, any> = {};
   const miss: string[] = [];
   const failedMemberIds: number[] = [];
@@ -31,17 +34,16 @@ export async function standardizeMember(
 
   // Step 1: Cache check
   const redisPromises = objects.map(async (obj) => {
-    let rawKey: string, normalized: string;
-
+    let rawKey: string | string[], normalized: string;
     if (target === "experience") {
-      // @ts-ignore
       rawKey = (obj as ExperienceAttributes).title;
       normalized = normalizeExperienceAiOutput(rawKey).normalized;
     } else {
-      const degree = (obj as EducationAttributes).degrees || "";
-      normalized = rawKey = `${degree}`;
-      logger.info(`setting raw key and normizlaied : ${rawKey}`)
+      rawKey = (obj as EducationAttributes).degrees || [""];
+      rawKey = rawKey.join(' ')
+      normalized = normalizeEducationCacheKey(rawKey).normalized;
     }
+
     titleToNormalized[rawKey] = normalized;
     const cacheKey = `${cacheKeyPrefix}:${normalized}`;
     try {
@@ -60,9 +62,9 @@ export async function standardizeMember(
   });
   await Promise.allSettled(redisPromises);
 
-  logger.info(
-    `[${batchId}] Cache check complete. Hits: ${Object.keys(hits).length}, Misses: ${miss.length} \n\n`
-  );
+  logger.debug(`hits findme len (after ai call)${hits.length}`)
+  logger.debug(`Miss findme len (after ai call)${miss.length}`)
+  logger.debug(`failed-ai findme len (after ai cache call)${failedMemberIds.length}`)
 
   let standardizedMiss: ExperienceAiOutput[] | EducationAiOutput [] = [];
   if (miss.length > 0) {
@@ -72,17 +74,43 @@ export async function standardizeMember(
       } else {
         standardizedMiss = await geminiClient.classifyEducation(miss) as EducationAiOutput[];
       }
+      logger.debug(`Miss-ai findme len (after ai call)${standardizedMiss.length}`)
+
+       // After getting standardizedMiss, handle validation failures
+      for (const item of standardizedMiss) {
+        if (item.validationStatus === false) {
+          let failedId: number | undefined;
+          if (target === "experience") {
+            const found = objects.find(
+              (m) => (m as ExperienceAttributes).title === (item as any).title
+            );
+            failedId = found ? found.id : undefined;
+          } else {
+            const found = objects.find(
+              (m) => (m as EducationAttributes).degrees === (item as any).education
+            );
+            failedId = found ? found.id : undefined;
+          }
+          if (failedId !== undefined) {
+            failedMemberIds.push(failedId);
+          }
+        }
+      }
+      logger.debug(`validation-ai findme len (after ai validation call)${standardizedMiss.length}`)
+      logger.debug(`failed-ai findme len (after ai validation call)${failedMemberIds.length}`)
+
+
     } catch (err) {
       logger.error(`[${batchId}] Gemini classification failed: ${err}`);
       const missedIds = objects
-        .filter((m) => {
+        .filter((m: ExperienceAttributes | EducationAttributes) => {
           if (target === "experience") return miss.includes((m as ExperienceAttributes).title);
           else {
             const degree = (m as EducationAttributes).degrees || "";
             return miss.includes(`${degree}`);
           }
         })
-        .map((m) => (m as any).id);
+        .map((m) => m.id);
       failedMemberIds.push(...missedIds);
     }
   }
@@ -103,7 +131,6 @@ export async function standardizeMember(
         const key = `${cacheKeyPrefix}:${normalized}`;
         pipeline.set(key, JSON.stringify(result));
         hits[rawKey] = result;
-        logger.info(`we check if something here is saved ${JSON.stringify(hits[rawKey], null, 2)}}`)
       }
       await pipeline.exec();
     } catch (err) {
@@ -111,11 +138,11 @@ export async function standardizeMember(
     }
   
 
-    logger.info(`space \n\n `)
 
   // Update objects in database
   for (const obj of objects) {
     let standardized: EducationAiOutput | ExperienceAiOutput, id: number;
+
     if (target === "experience") {
       standardized = hits[(obj as ExperienceAttributes).title] as ExperienceAiOutput;
       id = (obj as ExperienceAttributes).id;
@@ -142,20 +169,17 @@ export async function standardizeMember(
         logger.error(`[${batchId}] DB update failed for obj ID ${id}:`, err);
       }
     } else {
-      // Education
-      const degree = (obj as EducationAttributes).degrees || "";
-      const rawKey = `${degree}`;
+      const degree = (obj as EducationAttributes).degrees || [""];
+      const rawKey = degree.join(' ');
       standardized = hits[rawKey] as EducationAiOutput;
-      logger.info(`${rawKey} used to generate ${JSON.stringify(standardized)}`)
 
       id = (obj as EducationAttributes).id;
-      if (!standardized) continue;
+      if (!standardized) throw Error(`logical error while updating records on DB, ${obj}`);
       if ((obj as any).education_standardize_status === "standardized") {
         logger.info(`[${batchId}] Skipping already-standardized obj: ${id}`);
         continue;
       }
       try {
-        logger.info(`${JSON.stringify(standardized)},----------------------- ,${Number(id)}`)
         await retryMemberUpdate(
           'education',
           {

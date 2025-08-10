@@ -112,17 +112,9 @@ export class ExperienceAiOutputNormalizer {
     };
   }
 
-  public normalizeAll(titles: string[]): NormalizedTitle[] {
-    return titles.map((t) => this.normalize(t));
-  }
 }
 
 const normalizer = new ExperienceAiOutputNormalizer();
-
-export function normalizeExperienceAiOutputs(titles: string[]): NormalizedTitle[] {
-  return normalizer.normalizeAll(titles);
-}
-
 export function normalizeExperienceAiOutput(title: string): NormalizedTitle {
   return normalizer.normalize(title);
 }

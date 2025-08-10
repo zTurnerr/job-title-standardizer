@@ -3,12 +3,14 @@ export interface ExperienceAiOutput {
   seniority_level: string;
   department: string;
   function: string;
+  validationStatus?: boolean
 }
 
 export interface EducationAiOutput {
   major: string;
   degree: string;
   education: string;
+  validationStatus?: boolean
 }
 
 export interface aiStandardizationTypes  {
