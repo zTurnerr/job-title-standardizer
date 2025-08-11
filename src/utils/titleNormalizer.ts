@@ -106,10 +106,16 @@ export class ExperienceAiOutputNormalizer {
       });
     }
 
-    return {
+    const output = title.trim() == '' ? {
       title: input.trim(),
-      normalized: title.trim(),
-    };
+      normalized: input.trim()
+    } :
+      {
+        title: input.trim(),
+        normalized: title.trim(),
+      }
+    return output
+
   }
 
 }

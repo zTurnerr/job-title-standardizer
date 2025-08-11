@@ -148,7 +148,7 @@ export const geminiClient = {
         const text = result.text;
         lastResponse = text;
 
-        logger.debug("Raw Gemini response:", text);
+        logger.info("Raw Gemini response:", text);
 
         const jsonStart = text.indexOf("[");
         const jsonEnd = text.lastIndexOf("]");
@@ -483,7 +483,7 @@ export const geminiClient = {
           lastResponse = text.replace(/\t/g, " ");
         }else lastResponse = text;
 
-        // logger.info("Gemini raw output:\n" + lastResponse);
+        logger.info("Gemini raw output:\n" + lastResponse);
 
 
 

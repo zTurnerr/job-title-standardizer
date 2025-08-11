@@ -101,16 +101,23 @@ export class EducationKeyNormalizer {
             logger.info(`→ key: edu:${body}`);
         }
 
-        return {
+        const output = body == '' ? {
             education: input,
-            normalized: body
-        }
+            normalized: input
+        } :
+            {
+                education: input,
+                normalized: body
+            }
+        return output
     }
 
 }
 
 // Convenience singleton
 const eduKey = new EducationKeyNormalizer();
-export const normalizeEducationCacheKey = (s: string) => { logger.info(s); 
-    return eduKey.normalizeKey(s) };
+export const normalizeEducationCacheKey = (s: string) => {
+    logger.info(s);
+    return eduKey.normalizeKey(s)
+};
 

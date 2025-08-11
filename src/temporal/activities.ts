@@ -24,8 +24,8 @@ export async function standardizeMember(
   }
 
   const cacheKeyPrefix = target === "experience"
-  ? (config.titleCacheKey || "EXP")
-  : (config.eduCacheKey || "EDU");
+    ? (config.titleCacheKey || "EXP")
+    : (config.eduCacheKey || "EDU");
 
   const hits: Record<string, any> = {};
   const miss: string[] = [];
@@ -50,10 +50,10 @@ export async function standardizeMember(
       const cached = await redis.get(cacheKey);
       if (cached) {
         hits[rawKey] = JSON.parse(cached);
-        logger.info(`Cache hit for "${rawKey}", Normalized: "${normalized}"`);
+        // logger.info(`Cache hit for "${rawKey}", Normalized: "${normalized}"`);
       } else {
         miss.push(rawKey);
-        logger.info(`Cache miss for "${rawKey}", Normalized: "${normalized}"`);
+        // logger.info(`Cache miss for "${rawKey}", Normalized: "${normalized}"`);
       }
     } catch (err) {
       logger.error(`[${batchId}] Redis error for ${rawKey}/${normalized}:`, err);
@@ -61,12 +61,15 @@ export async function standardizeMember(
     }
   });
   await Promise.allSettled(redisPromises);
+  logger.info('----------------------------')
+  logger.info(`hits findme len (before ai call)${Object.keys(hits).length}`)
+  logger.info(`Miss findme len (before ai call)${miss.length}`)
+  logger.info(`failed-ai findme len (before ai cache call)${failedMemberIds.length}`)
 
-  logger.debug(`hits findme len (after ai call)${hits.length}`)
-  logger.debug(`Miss findme len (after ai call)${miss.length}`)
-  logger.debug(`failed-ai findme len (after ai cache call)${failedMemberIds.length}`)
+  logger.info('----------------------------');
+  logger.info(`\n`)
 
-  let standardizedMiss: ExperienceAiOutput[] | EducationAiOutput [] = [];
+  let standardizedMiss: ExperienceAiOutput[] | EducationAiOutput[] = [];
   if (miss.length > 0) {
     try {
       if (target === "experience") {
@@ -74,9 +77,9 @@ export async function standardizeMember(
       } else {
         standardizedMiss = await geminiClient.classifyEducation(miss) as EducationAiOutput[];
       }
-      logger.debug(`Miss-ai findme len (after ai call)${standardizedMiss.length}`)
+      logger.info(`Miss-ai findme len (after ai call - before validation) input: ${miss.length} output: ${standardizedMiss.length}`)
 
-       // After getting standardizedMiss, handle validation failures
+      // After getting standardizedMiss, handle validation failures
       for (const item of standardizedMiss) {
         if (item.validationStatus === false) {
           let failedId: number | undefined;
@@ -92,12 +95,19 @@ export async function standardizeMember(
             failedId = found ? found.id : undefined;
           }
           if (failedId !== undefined) {
+            logger.info('pushed failed after ai stand and valid, findme2')
             failedMemberIds.push(failedId);
           }
         }
       }
-      logger.debug(`validation-ai findme len (after ai validation call)${standardizedMiss.length}`)
-      logger.debug(`failed-ai findme len (after ai validation call)${failedMemberIds.length}`)
+
+      logger.info('----------------------------');
+
+      logger.info(`validation-ai findme len (after ai validation call): ${standardizedMiss.length}`)
+      logger.info(`failed-ai findme len (after ai validation call): ${failedMemberIds.length}`)
+
+      logger.info('----------------------------');
+      logger.info(`\n`)
 
 
     } catch (err) {
@@ -111,32 +121,33 @@ export async function standardizeMember(
           }
         })
         .map((m) => m.id);
+      logger.info(`pushing failed members on catch error for gemini classification ${missedIds}`)
       failedMemberIds.push(...missedIds);
     }
   }
-  
-    try {
-      const pipeline = redis.pipeline();
-      for (const result of standardizedMiss) {
-        let rawKey: string, normalized: string;
-        if (target === "experience") {
-          rawKey = (result as ExperienceAiOutput).title;
-          normalized = titleToNormalized[rawKey];
-        } else {
-          rawKey = (result as EducationAiOutput).education; 
-          normalized = titleToNormalized[rawKey];
-        }
 
-        if (!normalized) continue;
-        const key = `${cacheKeyPrefix}:${normalized}`;
-        pipeline.set(key, JSON.stringify(result));
-        hits[rawKey] = result;
+  try {
+    const pipeline = redis.pipeline();
+    for (const result of standardizedMiss) {
+      let rawKey: string, normalized: string;
+      if (target === "experience") {
+        rawKey = (result as ExperienceAiOutput).title;
+        normalized = titleToNormalized[rawKey];
+      } else {
+        rawKey = (result as EducationAiOutput).education;
+        normalized = titleToNormalized[rawKey];
       }
-      await pipeline.exec();
-    } catch (err) {
-      logger.error(`[${batchId}] Failed to write to Redis: ${err}`);
+
+      if (!normalized) continue;
+      const key = `${cacheKeyPrefix}:${normalized}`;
+      pipeline.set(key, JSON.stringify(result));
+      hits[rawKey] = result;
     }
-  
+    await pipeline.exec();
+  } catch (err) {
+    logger.error(`[${batchId}] Failed to write to Redis: ${err}`);
+  }
+
 
 
   // Update objects in database
@@ -146,10 +157,12 @@ export async function standardizeMember(
     if (target === "experience") {
       standardized = hits[(obj as ExperienceAttributes).title] as ExperienceAiOutput;
       id = (obj as ExperienceAttributes).id;
-      if (!standardized) continue;
-      if ((obj as any).title_standerlization_status === "standardized") {
+      if (!standardized) {
+        logger.info(`pushing a failed id trying to update the db ${id}`)
+        failedMemberIds.push(id)
+      };
+      if ((obj as ExperienceAttributes).title_standerlization_status === "standardized") {
         logger.info(`[${batchId}] Skipping already-standardized obj: ${id}`);
-        continue;
       }
       try {
         await retryMemberUpdate(
@@ -174,7 +187,10 @@ export async function standardizeMember(
       standardized = hits[rawKey] as EducationAiOutput;
 
       id = (obj as EducationAttributes).id;
-      if (!standardized) throw Error(`logical error while updating records on DB, ${obj}`);
+      if (!standardized) {
+        logger.info(`pushing a failed id trying to update the db ${id}`)
+        failedMemberIds.push(id)
+      }
       if ((obj as any).education_standardize_status === "standardized") {
         logger.info(`[${batchId}] Skipping already-standardized obj: ${id}`);
         continue;
